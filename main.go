@@ -8,7 +8,7 @@ import (
 	"go_final_project/handlers"
 
 	"github.com/go-chi/chi/v5"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 func main() {
