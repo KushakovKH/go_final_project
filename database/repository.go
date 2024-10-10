@@ -70,7 +70,9 @@ func (repo *Repository) GetTasks(search string) ([]Task, error) {
 		args = append(args, searchTerm, searchTerm)
 	}
 
-	query += " ORDER BY date LIMIT 50"
+	query += " ORDER BY date LIMIT ?"
+	args = append(args, LimitTasks)
+
 	rows, err := repo.DB.Query(query, args...)
 	if err != nil {
 		return nil, err
@@ -85,5 +87,18 @@ func (repo *Repository) GetTasks(search string) ([]Task, error) {
 		}
 		tasks = append(tasks, task)
 	}
-	return tasks, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return tasks, nil
+}
+
+func (repo *Repository) AddTask(task Task) (int64, error) {
+	res, err := repo.DB.Exec("INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)",
+		task.Date, task.Title, task.Comment, task.Repeat)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
 }

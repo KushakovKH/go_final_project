@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -39,6 +40,7 @@ func startServer(repository *database.Repository) {
 	cNR.Post("/api/task/done", handlers.HandleTaskDone(repository))
 
 	port := ":7540"
+	fmt.Printf("Starting server on %s\n", port)
 	err := http.ListenAndServe(port, cNR)
 	if err != nil {
 		log.Fatalf("Failed to start server: %v", err)

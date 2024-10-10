@@ -36,7 +36,7 @@ func handlePostTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dateFormat := "20060102"
+	dateFormat := database.DateFormat
 	var date time.Time
 	if task.Date == "" {
 		date = time.Now()
@@ -70,13 +70,10 @@ func handlePostTask(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	res, err := database.DB.Exec("INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)",
-		task.Date, task.Title, task.Comment, task.Repeat)
-	if err != nil {
-		http.Error(w, `{"error":"Ошибка в базе данных"}`, http.StatusInternalServerError)
-		return
-	}
-	id, err := res.LastInsertId()
+	repository := database.NewRepository(database.DB)
+
+	id, err := repository.AddTask(task)
+
 	if err != nil {
 		http.Error(w, `{"error":"Ошибка в базе данных"}`, http.StatusInternalServerError)
 		return
@@ -115,7 +112,7 @@ func validateRepeatPattern(pattern string) error {
 }
 
 func NextDate(now time.Time, date string, repeat string) (string, error) {
-	startDate, err := time.Parse("20060102", date)
+	startDate, err := time.Parse(database.DateFormat, date)
 	if err != nil {
 		return "", fmt.Errorf("Недопустимый формат даты: %w", err)
 	}
@@ -142,7 +139,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		for !nextDate.After(now) {
 			nextDate = nextDate.AddDate(0, 0, days)
 		}
-		return nextDate.Format("20060102"), nil
+		return nextDate.Format(database.DateFormat), nil
 	case "y":
 		if len(parts) != 1 {
 			return "", errors.New("Недопустимый формат правила повторения для годового правила")
@@ -151,7 +148,7 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 		for !nextDate.After(now) {
 			nextDate = nextDate.AddDate(1, 0, 0)
 		}
-		return nextDate.Format("20060102"), nil
+		return nextDate.Format(database.DateFormat), nil
 	default:
 		return "", errors.New("Неподдерживаемое правило повтора")
 	}
@@ -162,7 +159,7 @@ func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	dateStr := r.FormValue("date")
 	repeatStr := r.FormValue("repeat")
 
-	now, err := time.Parse("20060102", nowStr)
+	now, err := time.Parse(database.DateFormat, nowStr)
 	if err != nil {
 		http.Error(w, "Недопустимый формат даты 'now'", http.StatusBadRequest)
 		return
@@ -305,11 +302,11 @@ func HandleTaskPut(repository *database.Repository) http.HandlerFunc {
 }
 
 func validateDate(task *database.Task) error {
-	parsedDate, err := time.Parse("20060102", task.Date)
+	parsedDate, err := time.Parse(database.DateFormat, task.Date)
 	if err != nil {
 		return errors.New("Некорректный формат даты")
 	}
-	today := time.Now().Format("20060102")
+	today := time.Now().Format(database.DateFormat)
 	if parsedDate.Before(time.Now()) {
 		if task.Repeat == "" {
 			task.Date = today
